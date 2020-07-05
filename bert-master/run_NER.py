@@ -666,7 +666,7 @@ def create_model(bert_config, is_training, input_ids, input_mask, segment_ids,
 
     # output_layer = model.get_pooled_output()
 
-    output_layer = model.get_sequence_output()
+    output_layer = model.get_sequence_output()  #shape=(?, 256, 768)
 
     hidden_size = output_layer.shape[-1].value
 
@@ -681,20 +681,20 @@ def create_model(bert_config, is_training, input_ids, input_mask, segment_ids,
     with tf.variable_scope("loss"):
         if is_training:
             output_layer = tf.nn.dropout(output_layer, keep_prob=0.9)
-        output_layer = tf.reshape(output_layer, [-1, hidden_size])
-        logits = tf.matmul(output_layer, output_weight, transpose_b=True)
-        logits = tf.nn.bias_add(logits, output_bias)
-        logits = tf.reshape(logits, [-1, FLAGS.max_seq_length, 10])  # 这里的10对应着总类别数。
+        output_layer = tf.reshape(output_layer, [-1, hidden_size]) #shape=(?, 768)
+        logits = tf.matmul(output_layer, output_weight, transpose_b=True) #shape=(?, 10)
+        logits = tf.nn.bias_add(logits, output_bias)                  #shape=(?, 10)
+        logits = tf.reshape(logits, [-1, FLAGS.max_seq_length, 10])  # 这里的10对应着总类别数。   shape=(?, 256, 10)
         # mask = tf.cast(input_mask,tf.float32)
         # loss = tf.contrib.seq2seq.sequence_loss(logits,labels,mask)
         # return (loss, logits, predict)
         ##########################################################################
-        log_probs = tf.nn.log_softmax(logits, axis=-1)
-        one_hot_labels = tf.one_hot(labels, depth=num_labels, dtype=tf.float32)
-        per_example_loss = -tf.reduce_sum(one_hot_labels * log_probs, axis=-1)
+        log_probs = tf.nn.log_softmax(logits, axis=-1)   #shape=(?, 256, 10)
+        one_hot_labels = tf.one_hot(labels, depth=num_labels, dtype=tf.float32)  #shape=(?, 256, 10)
+        per_example_loss = -tf.reduce_sum(one_hot_labels * log_probs, axis=-1)  #shape=(?, 256)
         loss = tf.reduce_sum(per_example_loss)
-        probabilities = tf.nn.softmax(logits, axis=-1)
-        predict = tf.argmax(probabilities, axis=-1)
+        probabilities = tf.nn.softmax(logits, axis=-1)  #shape=(?, 256, 10)
+        predict = tf.argmax(probabilities, axis=-1) #shape=(?, 256)
 
         return (loss, per_example_loss, logits, predict)
 
