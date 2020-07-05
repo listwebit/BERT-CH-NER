@@ -666,22 +666,22 @@ def create_model(bert_config, is_training, input_ids, input_mask, segment_ids,
 
     # output_layer = model.get_pooled_output()
 
-    output_layer = model.get_sequence_output()  #shape=(?, 256, 768)
+    output_layer = model.get_sequence_output()  #shape=(?, 256, 768) NER是以单个字为单位，（batch_size,每个样本字个数，每个字特征维度）
 
-    hidden_size = output_layer.shape[-1].value
+    hidden_size = output_layer.shape[-1].value  #字特征维度
 
     output_weight = tf.get_variable(
-        "output_weights", [num_labels, hidden_size],
+        "output_weights", [num_labels, hidden_size],         #（10个分类，每个字特征维度） 目的是和最后的lay相乘得到10维度，来分类
         initializer=tf.truncated_normal_initializer(stddev=0.02)
     )
     output_bias = tf.get_variable(
-        "output_bias", [num_labels], initializer=tf.zeros_initializer()
+        "output_bias", [num_labels], initializer=tf.zeros_initializer() #【0.2，3，...】 一个10维度的向量
     )
     # loss 和 predict 需要自己定义
     with tf.variable_scope("loss"):
         if is_training:
             output_layer = tf.nn.dropout(output_layer, keep_prob=0.9)
-        output_layer = tf.reshape(output_layer, [-1, hidden_size]) #shape=(?, 768)
+        output_layer = tf.reshape(output_layer, [-1, hidden_size]) #shape=(?, 768) #将数据转换成 a [1,3,4..] ,一个字和一个特征的形式，为了方便计算每个字的分类和损失
         logits = tf.matmul(output_layer, output_weight, transpose_b=True) #shape=(?, 10)
         logits = tf.nn.bias_add(logits, output_bias)                  #shape=(?, 10)
         logits = tf.reshape(logits, [-1, FLAGS.max_seq_length, 10])  # 这里的10对应着总类别数。   shape=(?, 256, 10)
